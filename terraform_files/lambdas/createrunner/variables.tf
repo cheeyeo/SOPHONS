@@ -11,10 +11,6 @@ variable "enable_sqs_trigger" {
   default     = true
 }
 
-variable "launch_template_name" {
-  description = "Launch template to use for creating runners"
-}
-
 variable "self_hosted_ec2_instance_role" {
   description = "EC2 Instance role name"
   type        = string

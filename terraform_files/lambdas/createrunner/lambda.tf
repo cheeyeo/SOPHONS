@@ -22,10 +22,9 @@ resource "aws_lambda_function" "create_runner" {
 
   environment {
     variables = {
-      GITHUB_TOKEN         = var.github_token_name
-      LAUNCH_TEMPLATE_NAME = var.launch_template_name
-      SQS_QUEUE            = var.sqs_url
-      RUNNER_SCRIPT        = var.s3_runner_script_url
+      GITHUB_TOKEN  = var.github_token_name
+      SQS_QUEUE     = var.sqs_url
+      RUNNER_SCRIPT = var.s3_runner_script_url
     }
   }
 }

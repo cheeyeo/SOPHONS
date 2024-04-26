@@ -30,12 +30,49 @@ module "vpc_runner" {
 }
 
 module "launch_template" {
-  source                        = "./launch_templates"
-  private_subnet_id             = module.vpc_runner.private_subnet_id
-  security_group_id             = module.vpc_runner.security_group_id
-  template_name                 = "SPOT_INSTANCE_TEMPLATE_V2"
-  self_hosted_ec2_instance_name = "GHSelfHostedRunnerEC2"
+  source = "./launch_templates"
+  runner_templates = [
+    {
+      template_name                   = "template_cpu"
+      ami_id                          = "ami-0d70174b8586f49a4"
+      instance_type                   = "c5d.9xlarge"
+      private_subnet_id               = module.vpc_runner.private_subnet_id
+      security_group_id               = module.vpc_runner.security_group_id
+      ec2_instance_role               = "GHSelfHostedRunnerEC2"
+      instance_market_type            = "spot"
+      instance_interruption_behaviour = "terminate"
+      instance_max_price              = "0.90"
+      instance_spot_type              = "one-time"
+      ebs_device_name                 = "/dev/sda1"
+      ebs_volume_type                 = "gp3"
+      ebs_volume_size                 = 80
+      ebs_delete_on_termination       = true
+      ebs_iops                        = 3000
+      ebs_throughput                  = 125
+    },
+    {
+      template_name                   = "template_gpu"
+      ami_id                          = "ami-077e814ede5564e40"
+      instance_type                   = "p3.2xlarge"
+      private_subnet_id               = module.vpc_runner.private_subnet_id
+      security_group_id               = module.vpc_runner.security_group_id
+      ec2_instance_role               = "GHSelfHostedRunnerEC2"
+      instance_market_type            = "spot"
+      instance_interruption_behaviour = "terminate"
+      instance_max_price              = "1.20"
+      instance_spot_type              = "one-time"
+      ebs_device_name                 = "/dev/sda1"
+      ebs_volume_type                 = "gp3"
+      ebs_volume_size                 = 80
+      ebs_delete_on_termination       = true
+      ebs_iops                        = 3000
+      ebs_throughput                  = 125
+    },
+  ]
+
+  depends_on = [module.vpc_runner]
 }
+
 
 module "ssm_runcommand" {
   source                = "./ssm_runcommand"
@@ -62,7 +99,6 @@ module "create_runner" {
   source                        = "./lambdas/createrunner"
   sqs_arn                       = module.sqs.queue_arn
   sqs_url                       = module.sqs.queue_url
-  launch_template_name          = "SPOT_INSTANCE_TEMPLATE_V2"
   github_token_name             = "/self-hosted-runner/github/gh-token"
   self_hosted_ec2_instance_role = "GHSelfHostedRunnerEC2"
   s3_runner_script_url          = module.ssm_runcommand.s3_script_url

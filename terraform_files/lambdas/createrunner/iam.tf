@@ -12,7 +12,7 @@ data "aws_iam_policy_document" "AWSLambdaTrustPolicy" {
 }
 
 resource "aws_iam_role" "create_runner" {
-  name               = "CreateRunner2"
+  name               = "CreateRunner"
   assume_role_policy = data.aws_iam_policy_document.AWSLambdaTrustPolicy.json
 }
 

@@ -11,7 +11,6 @@ logger.setLevel(logging.INFO)
 
 
 QUEUE_URL = os.environ.get('SQS_QUEUE')
-LAUNCH_TEMPLATE_NAME = os.environ.get('LAUNCH_TEMPLATE_NAME')
 GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN')
 RUNNER_SCRIPT = os.environ.get('RUNNER_SCRIPT')
 
@@ -30,6 +29,7 @@ def lambda_handler(event, context):
         body = json.loads(msg['body'])
         workflow_id = body.get('workflow_job').get('run_id')
         runner_labels = body.get('workflow_job').get('labels')
+        template_name = list(filter(lambda x: "template" in x, runner_labels))[0]
         repo_owner = body.get('repository').get('name')
         repo_name = body.get('repository').get('owner').get('login')
         repo_branch = body.get('workflow_job').get('head_branch')
@@ -37,14 +37,7 @@ def lambda_handler(event, context):
         logger.info(f'BODY: {body}')
         logger.info(f'WORKFLOW ID: {workflow_id}')
         logger.info(f'LABELS: {runner_labels}')
-
-        runner_type = ''
-        if 'cpu' in runner_labels:
-            runner_type = 'cpu'
-            logger.debug(f'RUNNER TYPE: {runner_type}')
-        elif 'gpu' in runner_labels:
-            runner_type = 'gpu'
-            logger.debug(f'RUNNER TYPE: {runner_type}')
+        logger.info(f'TEMPLATE: {template_name}')
     
         client = boto3.client('ec2')
         resp = client.create_fleet(
@@ -54,7 +47,7 @@ def lambda_handler(event, context):
             LaunchTemplateConfigs=[
                 {
                     'LaunchTemplateSpecification': {
-                        'LaunchTemplateName': LAUNCH_TEMPLATE_NAME,
+                        'LaunchTemplateName': template_name,
                         'Version': '$Default'
                     }
                 }
@@ -70,8 +63,8 @@ def lambda_handler(event, context):
                     'ResourceType': 'instance',
                     'Tags': [
                         {
-                            'Key': 'github-runner',
-                            'Value': runner_type
+                            'Key': 'template_name',
+                            'Value': template_name
                         },
                         {
                             'Key': 'self-hosted-runner',
@@ -118,7 +111,7 @@ def lambda_handler(event, context):
             
             logger.info(f'Instance {instance_id} created and running')
             
-            command_id = run_ssm_document(instance_id, runner_type, repo_owner, repo_name, repo_branch)
+            command_id = run_ssm_document(instance_id, template_name, repo_owner, repo_name, repo_branch)
             logger.info(f"Document Run: {command_id}")
 
     
@@ -135,7 +128,7 @@ def lambda_handler(event, context):
     return sqs_batch_response
 
 
-def run_ssm_document(instance_id, runner_type, repo_name, repo_owner, repo_branch):
+def run_ssm_document(instance_id, template_name, repo_name, repo_owner, repo_branch):
     client = boto3.client('ssm')
     
     gh_token = client.get_parameter(
@@ -157,7 +150,7 @@ def run_ssm_document(instance_id, runner_type, repo_name, repo_owner, repo_branc
         Parameters={
             "sourceType":["S3"],
             "sourceInfo": [json.dumps(source_info)],
-            "commandLine": [f"sudo chown ubuntu:ubuntu /tmp/jit_runner.sh && sudo runuser -l ubuntu -c 'GITHUB_PERSONAL_TOKEN={gh_token} GITHUB_OWNER={repo_owner} GITHUB_REPOSITORY={repo_name} /tmp/jit_runner.sh -n gh-runner-{instance_id} -l {runner_type} -l self-hosted -l Linux -l x64'"],
+            "commandLine": [f"sudo chown ubuntu:ubuntu /tmp/jit_runner.sh && sudo runuser -l ubuntu -c 'GITHUB_PERSONAL_TOKEN={gh_token} GITHUB_OWNER={repo_owner} GITHUB_REPOSITORY={repo_name} /tmp/jit_runner.sh -n gh-runner-{instance_id} -l {template_name} -l self-hosted -l Linux -l x64'"],
             "workingDirectory":["/tmp"],
             "executionTimeout":["3600"]
         },

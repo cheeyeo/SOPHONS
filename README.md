@@ -60,11 +60,31 @@ Note the value of the token as we need it in next stage.
   
   Select the following events: Workflow jobs, workflow runs
   ```
+  
+  Since only the workflow jobs and runs events are parsed, we only need the two else the lambda will have many events to process which may cause it to slow down...
 
-Since only the workflow jobs and runs events are parsed, we only need the two else the lambda will have many events to process which may cause it to slow down...
 
 * Under the webhook tab Deliveries, check for the status of a Ping message. If it returns 200, it's successful. If not refer to the errors in the Cloudwatch Logs.
 
+
+* Check that the runners are created under Settings > Actions > Runners
+  ![Runners page](runners_screenshot.png)
+  
+
+* To use the runners, update the github workflow labels to match the template names created via terraform above
+
+  For example, if the template name is **template_cpu**, the labels must be specified in the workflow as such:
+
+  ```
+  ...
+
+  jobs:
+  main:
+    runs-on: [self-hosted, template_cpu]
+
+  ...
+  
+  ```
 
 ### How it works
 
